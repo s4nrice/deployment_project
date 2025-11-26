@@ -276,30 +276,126 @@ CI/CD настроен через GitHub Actions и включает:
 
 Учебный проект для изучения backend-разработки и DevOps практик.
 
-## 🧩 Jenkins (минимальная настройка)
+## 🧩 Jenkins (минимальная настройка для CI/CD с деплоем на VPS)
 
-Ниже — минимальные шаги, чтобы запускать сборку и деплой через Jenkins вместо GitHub Actions.
+Настройка Pipeline для сборки Docker-образа, пуша в реестр (Docker Hub) и автоматического деплоя на VPS.
 
-- **Что делает `Jenkinsfile`**: собирает Docker-образ, опционально пушит в реестр и запускает `docker-compose up -d --build` на агенте.
+### Архитектура развертывания (Вариант A — Pull из реестра)
 
-- **Требования к агенту Jenkins**:
-  - Docker установлен на агенте.
-  - (опционально) Docker Compose, если вы используете шаг деплоя через `docker-compose`.
+1. **Build** на машине с Jenkins: `docker build` → собран образ.
+2. **Push** в Docker Hub: образ залит в `docker.io/youruser/deployment_project:hash`.
+3. **Deploy** на VPS: Jenkins подключается по SSH, выполняет `docker-compose pull` и `docker-compose up -d`.
 
-- **Параметры Pipeline**:
-  - `IMAGE_NAME` — имя образа (по умолчанию `deployment_project`).
-  - `REGISTRY` — адрес Docker-реестра (пример: `docker.io/youruser`). Оставьте пустым для локального использования.
-  - `PUSH_TO_REGISTRY` — при `true` pipeline попытается залогиниться и запушить образ.
+### Требования
 
-- **Credentials**: если вы хотите пушить в реестр, добавьте в Jenkins credentials типа `Username with password` с id `DOCKERHUB_CRED`.
+- Jenkins агент с Docker установленным.
+- SSH доступ к VPS (ключ добавлен в Jenkins).
+- Учётная запись Docker Hub (или другой публичный/приватный реестр).
 
-- **Пример создания Job**:
-  1. Создайте новую Pipeline job в Jenkins.
- 2. В разделе Pipeline укажите `Pipeline script from SCM` и выберите ваш репозиторий (git).
- 3. Укажите ветку и путь к `Jenkinsfile` в корне репозитория.
- 4. При необходимости создайте параметры и credentials в интерфейсе Jenkins.
+### Параметры Pipeline
 
-- **Отключение GitHub Actions**: просто удалите или деактивируйте файл `.github/workflows/ci-cd.yml` через GitHub UI, если хотите полностью перейти на Jenkins.
+- `IMAGE_NAME` — имя образа (по умолчанию `deployment_project`).
+- `REGISTRY` — адрес реестра (пример: `docker.io/youruser`). Оставьте пустым для локальной сборки.
+- `PUSH_TO_REGISTRY` — если `true`, образ пушится в реестр и триггерится деплой на VPS.
 
-Если нужно, могу адаптировать `Jenkinsfile` под ваш конкретный Jenkins (например, использование Docker agents, Kubernetes, или push в приватный регистр), и добавить job-скрипты/настройки для более безопасного хранения секретов.
+### Настройка Credentials в Jenkins
+
+#### 1. Docker Hub / Registry Credentials
+
+1. Откройте Jenkins → **Manage Credentials** → **System** → **Global credentials**.
+2. Нажмите **Add Credentials**.
+3. Выберите **Username with password**.
+4. Заполните:
+   - **Username**: ваш Docker Hub username.
+   - **Password**: ваш Docker Hub token или пароль.
+   - **ID**: `DOCKERHUB_CRED` (важно, должен совпадать с `Jenkinsfile`).
+5. Нажмите **Create**.
+
+#### 2. SSH Credentials для VPS
+
+1. Jenkins → **Manage Credentials** → **System** → **Global credentials** → **Add Credentials**.
+2. Выберите **SSH Username with private key**.
+3. Заполните:
+   - **Username**: `root` или имя пользователя на VPS (важно совпадает с `Jenkinsfile`).
+   - **Private Key**: вставьте содержимое вашего приватного SSH-ключа (например, `~/.ssh/id_rsa`).
+   - **ID**: `VPS_SSH` (совпадает с `Jenkinsfile`).
+4. Нажмите **Create**.
+
+#### 3. Environment Variables для VPS
+
+1. Jenkins → **Manage Jenkins** → **Configure System** → **Global properties** → **Environment variables**.
+2. Добавьте две переменные:
+   - **Name**: `VPS_HOST` → **Value**: IP-адрес или доменное имя VPS (пример: `123.45.67.89` или `vps.example.com`).
+   - **Name**: `VPS_DEPLOY_PATH` → **Value**: путь к проекту на VPS (пример: `/opt/deployment_project`).
+3. Нажмите **Save**.
+
+### Создание Pipeline Job
+
+1. Jenkins → **New Item**.
+2. Введите имя: `deployment_project-build`.
+3. Выберите **Pipeline**.
+4. Нажмите **OK**.
+5. В разделе **Pipeline**:
+   - Выберите **Pipeline script from SCM**.
+   - **SCM**: выберите **Git**.
+   - **Repository URL**: `https://github.com/s4nrice/deployment_project.git` (ваш репозиторий).
+   - **Branch**: `*/master` (или ветка по умолчанию).
+   - **Script Path**: `Jenkinsfile`.
+6. Нажмите **Save**.
+
+### Пример запуска Pipeline
+
+1. Откройте job → **Build with Parameters**.
+2. Заполните параметры:
+   - `IMAGE_NAME`: `deployment_project`
+   - `REGISTRY`: `docker.io/youruser` (замените `youruser` на ваше имя).
+   - `PUSH_TO_REGISTRY`: отметьте флажок.
+3. Нажмите **Build**.
+
+Pipeline выполнит:
+- Checkout репозитория.
+- Build Docker-образа с тагом `:shortGitHash`.
+- Login в Docker Hub и push образа.
+- SSH на VPS, pull образа, `docker-compose up -d`.
+
+### Настройка на VPS
+
+На VPS должны быть:
+- Docker и docker-compose установлены.
+- Файлы проекта в `/opt/deployment_project` (или другой путь из `VPS_DEPLOY_PATH`).
+- `docker-compose.yml` с образом в формате `image: docker.io/youruser/deployment_project:latest` (или с конкретным тагом).
+
+Пример `docker-compose.yml` на VPS:
+```yaml
+version: '3.8'
+services:
+  app:
+    image: docker.io/youruser/deployment_project:latest
+    ports:
+      - "8888:8888"
+    environment:
+      - OPENWEATHER_API_KEY=your_key
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+```
+
+### Отключение GitHub Actions
+
+Если хотите полностью перейти на Jenkins, удалите или деактивируйте `.github/workflows/ci-cd.yml` через GitHub UI.
+
+### Troubleshooting
+
+- **SSH connection fails**: проверьте, что SSH-ключ добавлен правильно, и VPS IP/домен верны.
+- **Docker login fails**: убедитесь, что `DOCKERHUB_CRED` credentials содержат правильный пароль/token.
+- **docker-compose pull fails**: проверьте на VPS, что `docker login` успешен и образ доступен в реестре.
 
