@@ -7,17 +7,8 @@ services:
     container_name: weather-api
     ports:
       - "8888:8000"
-    environment:
-      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
-      - APP_NAME=Weather API
-      - APP_VERSION=1.0.0
-      - DEBUG=False
-      - RATE_LIMIT_REQUESTS=60
-      - RATE_LIMIT_WINDOW=60
-      - CACHE_TTL=3600
+    env_file:
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -75,6 +66,8 @@ services:
     container_name: weather-grafana
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -89,27 +82,6 @@ services:
     depends_on:
       - prometheus
 
-  # Jenkins (для локальной разработки и тестирования CI/CD)
-  jenkins:
-    build:
-      context: .
-      dockerfile: Dockerfile.jenkins
-    container_name: weather-jenkins
-    ports:
-      - "7000:8080"
-      - "50000:50000"
-    environment:
-      - JENKINS_OPTS=--httpPort=8080
-    volumes:
-      - jenkins-data:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - weather-network
-    restart: unless-stopped
-    user: root
-    # Инициализация: добавляем все workspace в safe.directory при старте контейнера (решает Git ownership issues)
-    command: bash -c "git config --global --add safe.directory '*' 2>/dev/null; /usr/bin/tini -- /usr/local/bin/jenkins.sh"
-    # Примечание: Jenkins имеет встроенный Docker CLI для работы с Docker daemon через /var/run/docker.sock
 
 volumes:
   redis-data:
@@ -120,4 +92,3 @@ volumes:
 networks:
   weather-network:
     driver: bridge
-
