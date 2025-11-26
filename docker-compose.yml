@@ -91,19 +91,22 @@ services:
 
   # Jenkins (для локальной разработки и тестирования CI/CD)
   jenkins:
-    image: jenkins/jenkins:lts
+    image: jenkins/jenkins:lts-jdk17-docker
     container_name: weather-jenkins
     ports:
       - "7000:8080"
       - "50000:50000"
     environment:
       - JENKINS_OPTS=--httpPort=8080
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - jenkins-data:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
     networks:
       - weather-network
     restart: unless-stopped
+    user: root
     # Примечание: для работы Jenkins с Docker требуется docker.sock и права доступа
 
 volumes:
