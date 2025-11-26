@@ -89,10 +89,28 @@ services:
     depends_on:
       - prometheus
 
+  # Jenkins (для локальной разработки и тестирования CI/CD)
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: weather-jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - weather-network
+    restart: unless-stopped
+    # Примечание: для работы Jenkins с Docker требуется docker.sock и права доступа
+
 volumes:
   redis-data:
   prometheus-data:
   grafana-data:
+  jenkins-data:
 
 networks:
   weather-network:
