@@ -3,7 +3,7 @@ pipeline {
 
   parameters {
     string(name: 'IMAGE_NAME', defaultValue: 'deployment_project', description: 'Имя образа (без реестра)')
-    string(name: 'REGISTRY', defaultValue: '', description: 'Реестр Docker (пример: docker.io/youruser) — оставьте пустым для локальной сборки')
+    string(name: 'REGISTRY', defaultValue: '', description: 'Docker Hub username (пример: s4nrice) — оставьте пустым для локальной сборки')
     booleanParam(name: 'PUSH_TO_REGISTRY', defaultValue: false, description: 'Пушить ли собранный образ в реестр')
   }
 
@@ -19,10 +19,17 @@ pipeline {
         script {
           def gitShort = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
           def imageTag = "${params.IMAGE_NAME}:${gitShort}"
-          def fullImage = params.REGISTRY?.trim() ? "${params.REGISTRY}/${imageTag}" : imageTag
-          echo "Building image ${fullImage}"
-          sh "docker build -t ${fullImage} ."
-          env.BUILT_IMAGE = fullImage
+          
+          if (params.REGISTRY?.trim()) {
+            // Простой формат: username/image:tag (например s4nrice/deployment_project:hash)
+            env.BUILT_IMAGE = "${params.REGISTRY}/${imageTag}"
+          } else {
+            // Локальная сборка
+            env.BUILT_IMAGE = imageTag
+          }
+          
+          echo "Building image ${env.BUILT_IMAGE}"
+          sh "docker build -t ${env.BUILT_IMAGE} ."
         }
       }
     }
@@ -34,7 +41,8 @@ pipeline {
       steps {
         script {
           withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CRED', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            sh 'docker login -u "$DOCKER_USER" -p "$DOCKER_PASS" "$REGISTRY"'
+            // Логиним в Docker Hub (default)
+            sh 'docker login -u "$DOCKER_USER" -p "$DOCKER_PASS" docker.io'
             sh "docker push ${env.BUILT_IMAGE}"
             echo "Image pushed to registry: ${env.BUILT_IMAGE}"
           }
