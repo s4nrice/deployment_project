@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE = "s4nrice/deployment_project:latest"
+        VPS_USER = "root"
         VPS_HOST = "82.117.87.168"
         VPS_PATH = "/root/deploy"
     }
@@ -38,7 +39,7 @@ pipeline {
             steps {
                 sshagent(['vps_ssh']) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no user@${VPS_HOST} '
+                    ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} '
                         cd ${VPS_PATH} &&
                         docker compose pull &&
                         docker compose up -d
