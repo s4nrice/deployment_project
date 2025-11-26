@@ -293,7 +293,7 @@ docker-compose ps
 docker-compose logs -f jenkins
 ```
 
-Jenkins будет доступен по адресу: **http://localhost:8080**
+Jenkins будет доступен по адресу: **http://localhost:8081**
 
 #### Первоначальная настройка Jenkins
 
@@ -303,7 +303,7 @@ Jenkins будет доступен по адресу: **http://localhost:8080**
    ```
    Или просмотрите логи: `docker-compose logs jenkins | grep -i "password"`
 
-2. **Открыть Jenkins UI**: http://localhost:8080
+2. **Открыть Jenkins UI**: http://localhost:8081
 
 3. **Установить плагины**: при первом входе Jenkins предложит установить рекомендуемые плагины. Выберите **Install suggested plugins**.
 
@@ -315,7 +315,7 @@ Jenkins будет доступен по адресу: **http://localhost:8080**
      - **Pipeline** (обычно уже установлен).
      - **Git** (для работы с GitHub).
      - **Docker** (для работы с Docker).
-   - Перезагрузить Jenkins: http://localhost:8080/restart
+   - Перезагрузить Jenkins: http://localhost:8081/restart
 
 ---
 
