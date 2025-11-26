@@ -107,6 +107,8 @@ services:
       - weather-network
     restart: unless-stopped
     user: root
+    # Инициализация: добавляем workspace в safe.directory при старте контейнера
+    command: bash -c "git config --global --add safe.directory /var/jenkins_home/workspace/deployment_project 2>/dev/null; /usr/bin/tini -- /usr/local/bin/jenkins.sh"
     # Примечание: Jenkins имеет встроенный Docker CLI для работы с Docker daemon через /var/run/docker.sock
 
 volumes:
