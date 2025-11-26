@@ -34,7 +34,7 @@ pipeline {
       steps {
         script {
           withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CRED', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin ${params.REGISTRY}"
+            sh 'docker login -u "$DOCKER_USER" -p "$DOCKER_PASS" "$REGISTRY"'
             sh "docker push ${env.BUILT_IMAGE}"
             echo "Image pushed to registry: ${env.BUILT_IMAGE}"
           }
