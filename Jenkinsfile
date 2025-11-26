@@ -71,8 +71,12 @@ pipeline {
           echo "Деплой на VPS: пулим образ ${env.BUILT_IMAGE} и перезапускаем docker-compose."
           withCredentials([sshUserPrivateKey(credentialsId: 'VPS_SSH', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
             def vpsHost = env.VPS_HOST ?: 'your-vps-ip-or-domain'
-            def vpsPath = env.VPS_DEPLOY_PATH ?: '/opt/deployment_project'
+            def vpsPath = env.VPS_DEPLOY_PATH ?: '/root/deployment_project'
             
+            // Копируем docker-compose.yml и .env на VPS
+            sh "scp -o StrictHostKeyChecking=no -i ${SSH_KEY} .env ${SSH_USER}@${vpsHost}:${vpsPath}/ || true"
+            
+            // Подключаемся и запускаем docker-compose
             sh """
               ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${SSH_USER}@${vpsHost} << 'EOF'
                 cd ${vpsPath}
